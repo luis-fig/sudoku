@@ -1,157 +1,105 @@
---Núcleo funcional do tabuleiro de Sudoku.
+-- | Núcleo funcional: regras do Sudoku como funções puras (sem IO).
+--
+-- As funções assumem um tabuleiro 9x9; 'bemFormado' verifica isso.
 module Board
-  ( -- * Construção e acesso
-    tabuleiroVazio
-  , linhas
-  , colunas
-  , blocos
-  , linha
+  ( -- * Acesso
+    linha
   , coluna
   , bloco
-  , posicaoValida
   , celulaEm
-  , valorCelula
-  , valoresDe
   , celulasVazias
-  , substituirCelula
+  , substituir
     -- * Regras
+  , valoresDe
+  , semDuplicados
   , candidatos
-  , semConflitos
-  , tabuleiroBemFormado
+  , bemFormado
   , tabuleiroValido
   , tabuleiroResolvido
   ) where
 
-import Data.Maybe (fromMaybe)
+import Data.List (transpose)
 import Model
-import Utils
 
---Tabuleiro 9x9 sem nenhum valor.
-tabuleiroVazio :: Tabuleiro
-tabuleiroVazio = Tabuleiro (replicate tamanho (replicate tamanho Vazia))
+-- ---------------------------------------------------------------------------
+-- Acesso
 
---Todas as linhas do tabuleiro.
-linhas :: Tabuleiro -> [[Celula]]
-linhas (Tabuleiro ls) = ls
-
---Todas as colunas do tabuleiro (transposta das linhas).
-colunas :: Tabuleiro -> [[Celula]]
-colunas = transpor . linhas
-
---Os nove blocos 3x3, da esquerda para a direita e de cima para baixo.
-blocos :: Tabuleiro -> [[Celula]]
-blocos t = [bloco (l, c) t | l <- origens, c <- origens]
-  where
-    origens = [0, tamanhoBloco .. tamanho - 1]
-
---Linha @i@ (vazia se o índice for inválido).
+-- | Linha @i@ (0 a 8).
 linha :: Int -> Tabuleiro -> [Celula]
-linha i t = fromMaybe [] (elementoEm i (linhas t))
+linha i t = t !! i
 
---Coluna @j@ (vazia se o índice for inválido).
+-- | Coluna @j@ (0 a 8).
 coluna :: Int -> Tabuleiro -> [Celula]
-coluna j t = fromMaybe [] (elementoEm j (colunas t))
+coluna j t = map (!! j) t
 
---Células do bloco 3x3 que contém a posição dada, por ordem de leitura.
+-- | As 9 células do bloco 3x3 que contém a posição dada.
 bloco :: Posicao -> Tabuleiro -> [Celula]
-bloco p@(l, c) (Tabuleiro ls)
-  | not (posicaoValida p) = []
-  | otherwise = concatMap (fatia c0 tamanhoBloco) (fatia l0 tamanhoBloco ls)
+bloco (l, c) t = [t !! i !! j | i <- [l0 .. l0 + 2], j <- [c0 .. c0 + 2]]
   where
-    l0 = tamanhoBloco * (l `div` tamanhoBloco)
-    c0 = tamanhoBloco * (c `div` tamanhoBloco)
+    l0 = 3 * (l `div` 3)
+    c0 = 3 * (c `div` 3)
 
---Verifica se a posição está dentro do tabuleiro (índices de 0 a 8).
-posicaoValida :: Posicao -> Bool
-posicaoValida (l, c) = dentro l && dentro c
-  where
-    dentro n = n >= 0 && n < tamanho
-
---Célula numa posição, se a posição existir.
+-- | Célula numa posição; 'Nothing' se a posição estiver fora do tabuleiro.
 celulaEm :: Posicao -> Tabuleiro -> Maybe Celula
-celulaEm (l, c) (Tabuleiro ls) =
-  case elementoEm l ls of
-    Nothing -> Nothing
-    Just cs -> elementoEm c cs
+celulaEm (l, c) t
+  | l < 0 || l > 8 || c < 0 || c > 8 = Nothing
+  | otherwise = Just (t !! l !! c)
 
---Valor numérico de uma célula; 'Nothing' se estiver vazia.
-valorCelula :: Celula -> Maybe Int
-valorCelula Vazia = Nothing
-valorCelula (Fixa n) = Just n
-valorCelula (Preenchida n) = Just n
+-- | Posições das células vazias, por ordem de leitura.
+celulasVazias :: Tabuleiro -> [Posicao]
+celulasVazias t =
+  [(l, c) | (l, r) <- zip [0 ..] t, (c, x) <- zip [0 ..] r, x == Vazia]
 
---Valores presentes numa lista de células (ignora as vazias).
+-- | Novo tabuleiro com a célula da posição dada substituída.
+-- O original não é alterado; uma posição inválida não tem efeito.
+substituir :: Posicao -> Celula -> Tabuleiro -> Tabuleiro
+substituir (l, c) nova t =
+  [ [if (i, j) == (l, c) then nova else x | (j, x) <- zip [0 ..] r]
+  | (i, r) <- zip [0 ..] t
+  ]
+
+-- ---------------------------------------------------------------------------
+-- Regras
+
+-- | Valores numéricos de uma lista de células (ignora as vazias).
 valoresDe :: [Celula] -> [Int]
 valoresDe [] = []
-valoresDe (cel : cels) =
-  case valorCelula cel of
-    Nothing -> valoresDe cels
-    Just n -> n : valoresDe cels
+valoresDe (Vazia : cs) = valoresDe cs
+valoresDe (Fixa n : cs) = n : valoresDe cs
+valoresDe (Preenchida n : cs) = n : valoresDe cs
 
---Posições das células vazias, por ordem de leitura (linha a linha).
-celulasVazias :: Tabuleiro -> [Posicao]
-celulasVazias (Tabuleiro ls) = vaziasDasLinhas 0 ls
+-- | A lista não tem elementos repetidos.
+semDuplicados :: Eq a => [a] -> Bool
+semDuplicados [] = True
+semDuplicados (x : xs) = x `notElem` xs && semDuplicados xs
 
-vaziasDasLinhas :: Int -> [[Celula]] -> [Posicao]
-vaziasDasLinhas _ [] = []
-vaziasDasLinhas i (r : rs) = vaziasDaLinha i 0 r ++ vaziasDasLinhas (i + 1) rs
-
-vaziasDaLinha :: Int -> Int -> [Celula] -> [Posicao]
-vaziasDaLinha _ _ [] = []
-vaziasDaLinha i j (Vazia : cs) = (i, j) : vaziasDaLinha i (j + 1) cs
-vaziasDaLinha i j (_ : cs) = vaziasDaLinha i (j + 1) cs
-
---Devolve um novo tabuleiro com a célula da posição dada substituída.
-substituirCelula :: Posicao -> Celula -> Tabuleiro -> Tabuleiro
-substituirCelula p@(l, c) nova t@(Tabuleiro ls)
-  | not (posicaoValida p) = t
-  | otherwise = Tabuleiro (substituirNaLinha l c nova ls)
-
-substituirNaLinha :: Int -> Int -> Celula -> [[Celula]] -> [[Celula]]
-substituirNaLinha _ _ _ [] = []
-substituirNaLinha i c nova (r : rs)
-  | i == 0 = substituirEm c nova r : rs
-  | otherwise = r : substituirNaLinha (i - 1) c nova rs
-
---Regras
+-- | Valores que ainda se podem colocar numa célula vazia: os que não
+-- aparecem na sua linha, coluna nem bloco. Lista vazia se a célula já tem
+-- valor ou se a posição é inválida.
 candidatos :: Tabuleiro -> Posicao -> [Int]
 candidatos t p@(l, c) =
   case celulaEm p t of
-    Just Vazia -> diferenca valoresPossiveis usados
+    Just Vazia -> [n | n <- [1 .. 9], n `notElem` usados]
     _ -> []
   where
     usados = valoresDe (linha l t ++ coluna c t ++ bloco p t)
 
---Um grupo de células (linha, coluna ou bloco) não tem valores repetidos.
-semConflitos :: [Celula] -> Bool
-semConflitos = semDuplicados . valoresDe
+-- | 9 linhas de 9 células, com valores entre 1 e 9.
+bemFormado :: Tabuleiro -> Bool
+bemFormado t =
+  length t == 9
+    && all ((== 9) . length) t
+    && all (`elem` [1 .. 9]) (concatMap valoresDe t)
 
-gruposSemConflitos :: [[Celula]] -> Bool
-gruposSemConflitos [] = True
-gruposSemConflitos (g : gs) = semConflitos g && gruposSemConflitos gs
-
---O tabuleiro tem 9 linhas de 9 células e todos os valores estão entre 1 e 9.
-tabuleiroBemFormado :: Tabuleiro -> Bool
-tabuleiroBemFormado (Tabuleiro ls) =
-  comprimento ls == tamanho && linhasBemFormadas ls
-
-linhasBemFormadas :: [[Celula]] -> Bool
-linhasBemFormadas [] = True
-linhasBemFormadas (r : rs) =
-  comprimento r == tamanho
-    && valoresNoIntervalo (valoresDe r)
-    && linhasBemFormadas rs
-
-valoresNoIntervalo :: [Int] -> Bool
-valoresNoIntervalo [] = True
-valoresNoIntervalo (n : ns) = contem n valoresPossiveis && valoresNoIntervalo ns
-
---O tabuleiro está bem formado e não tem valores repetidos em nenhuma linha, coluna ou bloco (mesmo que ainda tenha células vazias).
+-- | Bem formado e sem valores repetidos em nenhuma linha, coluna ou bloco
+-- (pode ter células vazias).
 tabuleiroValido :: Tabuleiro -> Bool
 tabuleiroValido t =
-  tabuleiroBemFormado t
-    && gruposSemConflitos (linhas t ++ colunas t ++ blocos t)
+  bemFormado t && all (semDuplicados . valoresDe) grupos
+  where
+    blocos = [bloco (l, c) t | l <- [0, 3, 6], c <- [0, 3, 6]]
+    grupos = t ++ transpose t ++ blocos
 
---O tabuleiro é válido e não tem células vazias.
+-- | Válido e sem células vazias.
 tabuleiroResolvido :: Tabuleiro -> Bool
 tabuleiroResolvido t = tabuleiroValido t && null (celulasVazias t)

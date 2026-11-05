@@ -1,37 +1,29 @@
--- Todo o IO fica neste módulo: lê um puzzle de um ficheiro e mostra o
--- resultado das funções puras do núcleo (módulos em @src/@).
+-- | Demonstração da Fase 1. É o único módulo com IO.
 --
 -- Executar a partir da raiz do projeto: @cabal run sudoku@
 module Main (main) where
 
 import Board
-import Model (Celula (..), Tabuleiro)
+import Data.Char (intToDigit)
+import Model
 import Parsing (lerTabuleiro)
-import Render (mostrarTabuleiro)
 
-ficheiroExemplo :: FilePath
-ficheiroExemplo = "data/puzzle_facil.txt"
+mostrarCelula :: Celula -> Char
+mostrarCelula Vazia = '.'
+mostrarCelula (Fixa n) = intToDigit n
+mostrarCelula (Preenchida n) = intToDigit n
+
+mostrarTabuleiro :: Tabuleiro -> String
+mostrarTabuleiro = unlines . map (map mostrarCelula)
 
 main :: IO ()
 main = do
-  conteudo <- readFile ficheiroExemplo
+  conteudo <- readFile "data/puzzle.txt"
   case lerTabuleiro conteudo of
-    Nothing -> putStrLn ("Erro: formato invalido em " ++ ficheiroExemplo)
-    Just t -> demonstrar t
-
-demonstrar :: Tabuleiro -> IO ()
-demonstrar t = do
-  putStrLn "Tabuleiro carregado:"
-  putStr (mostrarTabuleiro t)
-  putStrLn ""
-  putStrLn ("Bem formado:     " ++ show (tabuleiroBemFormado t))
-  putStrLn ("Valido:          " ++ show (tabuleiroValido t))
-  putStrLn ("Resolvido:       " ++ show (tabuleiroResolvido t))
-  putStrLn ("Celulas vazias:  " ++ show (length (celulasVazias t)))
-  putStrLn ("Candidatos em (0,2): " ++ show (candidatos t (0, 2)))
-  putStrLn ("Candidatos em (4,4): " ++ show (candidatos t (4, 4)))
-  putStrLn ""
-  let t' = substituirCelula (0, 2) (Preenchida 4) t
-  putStrLn "Depois de colocar 4 em (0,2):"
-  putStr (mostrarTabuleiro t')
-  putStrLn ("Valido: " ++ show (tabuleiroValido t'))
+    Nothing -> putStrLn "Erro: ficheiro invalido."
+    Just t -> do
+      putStr (mostrarTabuleiro t)
+      putStrLn ("Valido: " ++ show (tabuleiroValido t))
+      putStrLn ("Resolvido: " ++ show (tabuleiroResolvido t))
+      putStrLn ("Celulas vazias: " ++ show (length (celulasVazias t)))
+      putStrLn ("Candidatos em (0,2): " ++ show (candidatos t (0, 2)))
