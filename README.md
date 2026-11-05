@@ -2,7 +2,10 @@
 
 Trabalho prático de Programação Funcional (UTAD) — **Fase 1: modelação e núcleo funcional**.
 
-Grupo: _preencher com os nomes e números dos elementos_
+Grupo:
+- Gabriel Alves (2025167532)
+- Luís Figueiredo (2025159370)
+- Samuel Sacramento (2025169823)
 
 ## Como usar
 
