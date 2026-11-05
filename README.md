@@ -6,7 +6,10 @@ Aplicação em Haskell para trabalhar com tabuleiros de Sudoku 9x9: representar 
 puzzle, consultar linhas, colunas e blocos, calcular os valores possíveis de cada
 célula e validar o tabuleiro.
 
-> Grupo: _preencher com os nomes e números dos elementos_
+Grupo:
+- Gabriel Alves (2025167532)
+- Luís Figueiredo (2025159370)
+- Samuel Sacramento (2025169823)
 
 ## Estado do projeto
 
