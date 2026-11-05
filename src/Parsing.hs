@@ -1,7 +1,5 @@
--- | Leitura de um tabuleiro a partir de texto.
---
--- Formato: 81 caracteres. Os dígitos de 1 a 9 são pistas; @.@ ou @0@ são
--- células vazias. Espaços e mudanças de linha são ignorados.
+--Leitura de um tabuleiro a partir de texto.
+-- Formato: 81 caracteres. Os dígitos de 1 a 9 são pistas; "." ou "0" são células vazias. Espaços e mudanças de linha são ignorados.
 module Parsing (lerTabuleiro) where
 
 import Data.Char (digitToInt, isSpace)
@@ -13,8 +11,7 @@ celulaDeChar ch
   | ch `elem` ['1' .. '9'] = Just (Fixa (digitToInt ch))
   | otherwise = Nothing
 
--- | 'Nothing' se houver caracteres inválidos ou se o número de células não
--- for 81.
+--'Nothing' se houver caracteres inválidos ou se o número de células não for 81.
 lerTabuleiro :: String -> Maybe Tabuleiro
 lerTabuleiro texto = do
   cels <- mapM celulaDeChar (filter (not . isSpace) texto)

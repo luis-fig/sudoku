@@ -1,6 +1,3 @@
--- | Demonstração da Fase 1. É o único módulo com IO.
---
--- Executar a partir da raiz do projeto: @cabal run sudoku@
 module Main (main) where
 
 import Board
